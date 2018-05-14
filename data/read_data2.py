@@ -26,7 +26,7 @@ def get_files(file_dir):
     return image_list
 
 
-def get_batch(image,image_W, image_H,batch_size,capacity):
+def get_batch(image, image_H, image_W, batch_size,capacity):
     image = tf.cast(image, tf.string)
 
     #加入队列
@@ -36,7 +36,7 @@ def get_batch(image,image_W, image_H,batch_size,capacity):
     image_contents = tf.read_file(input_queue[0])
     image = tf.image.decode_jpeg(image_contents,channels=1)
 
-    image = tf.image.resize_image_with_crop_or_pad(image, image_W, image_H)
+    image = tf.image.resize_image_with_crop_or_pad(image, image_H, image_W)
 
     image = tf.image.per_image_standardization(image)
     #对resize后的图片进行标准化处理
@@ -50,7 +50,7 @@ def get_batch(image,image_W, image_H,batch_size,capacity):
     return images_batch
 
 def get_label(start):
-    label = np.loadtxt('E:/y.txt')
+    label = np.genfromtxt('E:/data/Data0/output4/SRCN/November_800r_velocity_cnn.txt')
 
     label_list = np.zeros(shape=[FLAGS.batch_size, FLAGS.time_step, FLAGS.road_num])
 

@@ -11,7 +11,7 @@ class SRCN():
         self.mode = mode
 
         with tf.name_scope('inputs'):
-            self.xs = tf.placeholder(tf.float32, [None, FLAGS.image_width, FLAGS.image_height, FLAGS.image_channel], name='x_in')
+            self.xs = tf.placeholder(tf.float32, [None, FLAGS.image_height, FLAGS.image_width, FLAGS.image_channel], name='x_in')
             self.ys = tf.placeholder(tf.float32, [None, FLAGS.time_step, FLAGS.road_num], name='y_in')
         # with tf.name_scope('model'):
         #     self.buildmodel()
@@ -44,9 +44,11 @@ class SRCN():
                 with tf.variable_scope('unit-%d' % (i + 1)):
                     x = CNN.conv2d(x=x, name='cnn-%d' % (i + 1), filter_size=3, in_channels=filters[i], out_channels=filters[i+1], strides=strides[0])
                     # TODO 为了加快调试，BN被注释掉了
-                    # x = CNN.batch_norm('bn%d' % (i+1), x, self.mode)
+                    x = CNN.batch_norm('bn%d' % (i+1), x, self.mode)
                     x = CNN.leaky_relu(x, FLAGS.leakiness)
                     # TODO 论文中i=2/3时不需要pooling
+                    if i == 2 or i == 3:
+                        continue
                     x = CNN.max_pool(x, 2, strides[1])
 
                     # _, feature_h, feature_w, _ = x.shape
@@ -54,8 +56,8 @@ class SRCN():
 
         # TODO 确定如何获取h和w
         # x = tf.convert_to_tensor(x)
-        feature_h = 26
-        feature_w = 32
+        feature_h = 42
+        feature_w = 40
 
         # 构建Flatten
         with tf.name_scope('flatten'):
@@ -74,11 +76,11 @@ class SRCN():
             with tf.variable_scope('lstm1'):
                 lstm1 = LSTMRNN(h_fc1, FLAGS.time_step, FLAGS.input_size, FLAGS.output_size, FLAGS.cell_size, FLAGS.batch_size)
             with tf.variable_scope('lstm2'):
-                lstm2 = LSTMRNN(lstm1.pred, FLAGS.time_step, FLAGS.input_size, FLAGS.output_size, FLAGS.cell_size, FLAGS.batch_size)
+                self.lstm2 = LSTMRNN(lstm1.pred, FLAGS.time_step, FLAGS.input_size, FLAGS.output_size, FLAGS.cell_size, FLAGS.batch_size)
 
         # 构建Dropout
         with tf.name_scope('dropout'):
-            lstm_drop = tf.nn.dropout(lstm2.pred, keep_prob=0.2, name='drop')
+            lstm_drop = tf.nn.dropout(self.lstm2.pred, keep_prob=0.2, name='drop')
 
         # 构建FCN
         with tf.name_scope('fcn'):
@@ -97,6 +99,7 @@ class SRCN():
             softmax_loss_function=self.ms_error,
             name='losses'
         )
+
         with tf.name_scope('average_cost'):
             self.cost = tf.div(
                 tf.reduce_sum(losses, name='losses_sum'),
