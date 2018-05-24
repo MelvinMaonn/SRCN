@@ -5,6 +5,8 @@ import sys
 import os
 import time
 
+from utils import FLAGS
+
 '''tfrecord 写入数据.
 将图片数据写入 tfrecord 文件。以 MNIST jpg格式数据集为例。
 
@@ -24,10 +26,10 @@ import time
 '''
 
 # jpg 文件路径
-TRAINING_DIR = 'E:/test'
+TRAINING_DIR = 'E:/realDataFormat_800r_png'
 # TESTING_DIR = '../../MNIST_data/mnist_jpg/testing/'
 # tfrecord 文件保存路径,这里只保存一个 tfrecord 文件
-TRAINING_TFRECORD_NAME = 'training.tfrecord'
+TRAINING_TFRECORD_NAME = '800r_png_training.tfrecord'
 # TESTING_TFRECORD_NAME = 'testing.tfrecord'
 
 
@@ -37,6 +39,9 @@ def bytes_feature(values):
 
 def int64_feature(values):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[values]))
+
+def float_feature(values):
+    return tf.train.Feature(float_list=tf.train.FloatList(value=[values]))
 
 
 def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/'):
@@ -51,25 +56,33 @@ def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/
         exit()
     if not os.path.exists(os.path.dirname(tfrecord_path)):
         os.makedirs(os.path.dirname(tfrecord_path))
+
+    # label_list = np.genfromtxt('E:/data/Data0/output4/SRCN/November_800r_velocity_cnn.txt')
+    # label_list = label_list.tolist()
+
     tfrecord_file = os.path.join(tfrecord_path, tfrecord_name)
     with tf.python_io.TFRecordWriter(tfrecord_file) as writer:
             file_names = os.listdir(dataset_dir)  # 在该文件夹下，获取所有图片文件名
             time0 = time.time()
             n_sample = len(file_names)
-            for i in range(n_sample):
-                file_name = file_names[i]
-                sys.stdout.write('\r>> Converting image %d/%d , %g s' % (
-                    i + 1, n_sample, time.time() - time0))
-                jpg_path = os.path.join(dataset_dir, file_name)  # 获取每个图片的路径
-                # CNN inputs using
-                img = tf.gfile.FastGFile(jpg_path, 'rb').read()  # 读入图片
-                example = tf.train.Example(
-                    features=tf.train.Features(
-                        feature={
-                            'image': bytes_feature(img),
-                        }))
-                serialized = example.SerializeToString()
-                writer.write(serialized)
+            for i in range(n_sample - FLAGS.time_step):
+                for j in range(i, i+FLAGS.time_step):
+                    file_name = file_names[j]
+                    sys.stdout.write('\r>> Converting image %d/%d , %g s' % (
+                        i + 1, n_sample, time.time() - time0))
+                    jpg_path = os.path.join(dataset_dir, file_name)  # 获取每个图片的路径
+                    # CNN inputs using
+                    img = tf.gfile.FastGFile(jpg_path, 'rb').read()  # 读入图片
+                    # label = label_list[j]
+                    # label.toString()
+                    example = tf.train.Example(
+                        features=tf.train.Features(
+                            feature={
+                                'image': bytes_feature(img)
+                                # 'label': bytes_feature(label)
+                            }))
+                    serialized = example.SerializeToString()
+                    writer.write(serialized)
     print('\nFinished writing data to tfrecord files.')
 
 

@@ -91,7 +91,7 @@ class SRCN():
 
     def compute_cost(self):
         #TODO 确定如何计算loss
-        losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+        self.losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
             [tf.reshape(self.pred, [-1], name='reshape_pred')],
             [tf.reshape(self.ys, [-1], name='reshape_target')],
             [tf.ones([FLAGS.batch_size * FLAGS.time_step * FLAGS.road_num], dtype=tf.float32)],
@@ -102,7 +102,7 @@ class SRCN():
 
         with tf.name_scope('average_cost'):
             self.cost = tf.div(
-                tf.reduce_sum(losses, name='losses_sum'),
+                tf.reduce_sum(self.losses, name='losses_sum'),
                 FLAGS.batch_size,
                 name='average_cost')
             tf.summary.scalar('cost', self.cost)

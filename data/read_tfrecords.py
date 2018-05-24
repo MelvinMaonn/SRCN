@@ -5,7 +5,7 @@ import tensorflow as tf
 '''
 
 # **1.把所有的 tfrecord 文件名列表写入队列中
-filename_queue = tf.train.string_input_producer(['../data/training.tfrecord'], num_epochs=None, shuffle=False)
+filename_queue = tf.train.string_input_producer(['../data/second_ring_training.tfrecord'], num_epochs=None, shuffle=False)
 # **2.创建一个读取器
 reader = tf.TFRecordReader()
 _, serialized_example = reader.read(filename_queue)

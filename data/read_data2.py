@@ -49,13 +49,39 @@ def get_batch(image, image_H, image_W, batch_size,capacity):
 
     return images_batch
 
-def get_label(start):
-    label = np.genfromtxt('E:/data/Data0/output4/SRCN/November_800r_velocity_cnn.txt')
+def get_batch2(image_H, image_W, batch_size,capacity):
+    # **1.把所有的 tfrecord 文件名列表写入队列中
+    filename_queue = tf.train.string_input_producer(['drive/SRCN/data/800r_png_training.tfrecord'], num_epochs=1,
+                                                    shuffle=False)
+    # **2.创建一个读取器
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(filename_queue)
+    # **3.根据你写入的格式对应说明读取的格式
+    features = tf.parse_single_example(serialized_example,
+                                       features={
+                                           'image': tf.FixedLenFeature([], tf.string)
+                                       }
+                                       )
+    img = features['image']
+    # 这里需要对图片进行解码
+    img = tf.image.decode_png(img, channels=1)  # 这里，也可以解码为 1 通道
+    img = tf.reshape(img, [ image_H,image_W, 1])  # 28*28*3
+    img = tf.cast(img, tf.float32)
+    print('img is', img)
+
+    X_batch = tf.train.batch([img], batch_size=batch_size, capacity=capacity, num_threads=16)
+
+    X_batch = tf.cast(X_batch, tf.float32)
+
+    return X_batch
+
+def get_label(start, label):
+
 
     label_list = np.zeros(shape=[FLAGS.batch_size, FLAGS.time_step, FLAGS.road_num])
 
     for i in range(FLAGS.batch_size):
-        label_list[i] = label[start+i : start+i+FLAGS.time_step, 0:FLAGS.road_num]
+        label_list[i] = label[start+1+i : start+1+i+FLAGS.time_step]
 
     # label_list = tf.cast(label_list, tf.float32)
 
