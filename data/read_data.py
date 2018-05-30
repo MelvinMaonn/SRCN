@@ -2,63 +2,100 @@ import os
 import numpy as np
 import tensorflow as tf
 
-
+from utils import FLAGS
 
 
 def get_files(file_dir):
+    D= []
 
-    pathname = ['E:/test/0.jpg','E:/test/1.jpg','E:/test/2.jpg','E:/test/3.jpg','E:/test/4.jpg']
+    for (dirpath, dirnames, filenames) in os.walk(file_dir):
+        for filename in filenames:
+            D += [os.path.join(dirpath, filename)]
 
-    # for (dirpath, dirnames, filenames) in os.walk(file_dir):
-    #     for filename in filenames:
-    #         pathname += [os.path.join(dirpath, filename)]
+    temp = np.array([D])
+    temp = temp.transpose()
 
-    filename_queue = tf.train.string_input_producer(pathname, shuffle=False, num_epochs=1)
+    lists = list(temp[:,0])
 
-    return filename_queue
+    image_list = []
 
-    #
-    # threads = tf.train.start_queue_runners(sess=sess)
+    for i in range(len(lists) - FLAGS.time_step):
+        image_list.extend(lists[i:i+FLAGS.time_step])
+
+    # print(image_list)
+    return image_list
 
 
+def get_batch(image, image_H, image_W, batch_size,capacity):
+    image = tf.cast(image, tf.string)
 
-def get_batch(image,image_W,image_H, batch_size, capacity):
-    #tf.cast()用来做类型转换
-    # image = tf.cast(image,tf.string)
+    #加入队列
+    input_queue = tf.train.slice_input_producer([image])
 
-    image_reader = tf.WholeFileReader()
-    key, image = image_reader.read(image)
-    image = tf.image.decode_jpeg(image, channels=1)
+    #jpeg或者jpg格式都用decode_jpeg函数，其他格式可以去查看官方文档
+    image_contents = tf.read_file(input_queue[0])
+    image = tf.image.decode_jpeg(image_contents,channels=1)
 
-    image = tf.image.resize_image_with_crop_or_pad(image, image_W, image_H)
+    image = tf.image.resize_image_with_crop_or_pad(image, image_H, image_W)
+
+    image = tf.image.per_image_standardization(image)
+    #对resize后的图片进行标准化处理
 
     image_batch = tf.train.batch([image],batch_size = batch_size,num_threads=16,capacity = capacity)
 
-    return image_batch
+    images_batch = tf.cast(image_batch, tf.float32)
 
+    # y = get_label(0)
+
+    return images_batch
+
+def get_batch2(image_H, image_W, batch_size,capacity):
+    # **1.把所有的 tfrecord 文件名列表写入队列中
+    filename_queue = tf.train.string_input_producer(['drive/SRCN/data/800r_png_training.tfrecord'], num_epochs=20,
+                                                    shuffle=False)
+    # filename_queue = tf.train.string_input_producer(['data/800r_png_training.tfrecord'], num_epochs=1,
+    #                                                 shuffle=False)
+    # **2.创建一个读取器
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(filename_queue)
+    # **3.根据你写入的格式对应说明读取的格式
+    features = tf.parse_single_example(serialized_example,
+                                       features={
+                                           'image': tf.FixedLenFeature([], tf.string)
+                                       }
+                                       )
+    img = features['image']
+    # 这里需要对图片进行解码
+    img = tf.image.decode_png(img, channels=1)  # 这里，也可以解码为 1 通道
+    img = tf.reshape(img, [ image_H,image_W, 1])  # 28*28*3
+    img = tf.cast(img, tf.float32)
+    print('img3 is', img)
+
+    X_batch = tf.train.batch([img], batch_size=batch_size, capacity=capacity, num_threads=16)
+
+    X_batch = tf.cast(X_batch, tf.float32)
+
+    return X_batch
+
+def get_label(start, label):
+
+    start %= 6123
+
+    start *= FLAGS.batch_size
+
+    label_list = np.zeros(shape=[FLAGS.batch_size, FLAGS.time_step, FLAGS.road_num])
+
+    for i in range(FLAGS.batch_size):
+        label_list[i] = label[start+1+i : start+1+i+FLAGS.time_step]
+
+    # label_list = tf.cast(label_list, tf.float32)
+
+    return label_list
 
 if __name__ == '__main__':
-
-    train_dir = 'E:/test'
-
-    image = get_files(train_dir)
-
-    image_batch = get_batch(image,998, 828, 16, 64)
-
-    with tf.Session() as sess:
-
-        # tf.train.string_input_producer定义了一个epoch变量，要对它进行初始化
-        tf.local_variables_initializer().run()
-        # 使用start_queue_runners之后，才会开始填充队列
-        threads = tf.train.start_queue_runners(sess=sess)
-        print(type(image))
-        # print(type(image.eval))
-        # print(image.eval.dtype)
-        # print(image.eval.shape)
-        print(type(image_batch))
-        print(type(image_batch.eval()))
-        print(image_batch.eval().dtype)
-        print(image_batch.eval().shape)
+    image_list = get_files('E:/test/')
+    # get_batch(image_list,998,828,16,64)
+    # get_label()
 
 
 

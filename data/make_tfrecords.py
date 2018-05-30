@@ -26,7 +26,7 @@ from utils import FLAGS
 '''
 
 # jpg 文件路径
-TRAINING_DIR = 'E:/realDataFormat_800r_png'
+TRAINING_DIR = 'E:/data/Data0/output4/SRCN/realDataFormat_800r_png'
 # TESTING_DIR = '../../MNIST_data/mnist_jpg/testing/'
 # tfrecord 文件保存路径,这里只保存一个 tfrecord 文件
 TRAINING_TFRECORD_NAME = '800r_png_training.tfrecord'
@@ -62,10 +62,13 @@ def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/
 
     tfrecord_file = os.path.join(tfrecord_path, tfrecord_name)
     with tf.python_io.TFRecordWriter(tfrecord_file) as writer:
-            file_names = os.listdir(dataset_dir)  # 在该文件夹下，获取所有图片文件名
+            # 在该文件夹下，获取所有图片文件名
+            file_names = os.listdir(dataset_dir)
             time0 = time.time()
             n_sample = len(file_names)
-            for i in range(n_sample - FLAGS.time_step):
+            # 共30630-12 = 30618，但是为了便于5 batch整除，所以减3 = 30615
+            for i in range(n_sample - FLAGS.time_step - 3):
+                # 每步步长为12
                 for j in range(i, i+FLAGS.time_step):
                     file_name = file_names[j]
                     sys.stdout.write('\r>> Converting image %d/%d , %g s' % (

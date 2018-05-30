@@ -14,6 +14,7 @@ def conv2d(x, name, filter_size, in_channels, out_channels, strides):
                             shape=[out_channels],
                             dtype=tf.float32,
                             initializer=tf.constant_initializer())
+        tf.summary.histogram(name=name + '/biases', values=b)
 
         con2d_op = tf.nn.conv2d(x, kernel, [1, strides, strides, 1], padding='SAME')
 

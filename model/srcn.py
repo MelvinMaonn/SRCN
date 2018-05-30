@@ -43,10 +43,8 @@ class SRCN():
             for i in range(FLAGS.cnn_count):
                 with tf.variable_scope('unit-%d' % (i + 1)):
                     x = CNN.conv2d(x=x, name='cnn-%d' % (i + 1), filter_size=3, in_channels=filters[i], out_channels=filters[i+1], strides=strides[0])
-                    # TODO 为了加快调试，BN被注释掉了
                     x = CNN.batch_norm('bn%d' % (i+1), x, self.mode)
                     x = CNN.leaky_relu(x, FLAGS.leakiness)
-                    # TODO 论文中i=2/3时不需要pooling
                     if i == 2 or i == 3:
                         continue
                     x = CNN.max_pool(x, 2, strides[1])
@@ -67,7 +65,9 @@ class SRCN():
         with tf.name_scope('fcn'):
             #TODO 需要确定大小
             W_fc1 = fcn.weight_variable([feature_h*feature_w*filters[5], FLAGS.road_num], name='W')
+            tf.summary.histogram(name='fcn-1/weights', values=W_fc1)
             b_fc1 = fcn.bias_variable([FLAGS.road_num], name='b')
+            tf.summary.histogram(name='fcn-1/biases', values=b_fc1)
             h_fc1 = tf.matmul(cnn_flat, W_fc1) + b_fc1
 
         # 构建两层LSTM
@@ -85,27 +85,32 @@ class SRCN():
         # 构建FCN
         with tf.name_scope('fcn'):
             W_fc2 = fcn.weight_variable([FLAGS.road_num,FLAGS.road_num], name='W')
+            tf.summary.histogram(name='fcn-2/weights', values=W_fc2)
             b_fc2 = fcn.bias_variable([FLAGS.road_num], name='b')
+            tf.summary.histogram(name='fcn-2/biases', values=b_fc2)
             self.pred = tf.matmul(lstm_drop, W_fc2) + b_fc2
 
 
     def compute_cost(self):
         #TODO 确定如何计算loss
-        self.losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
-            [tf.reshape(self.pred, [-1], name='reshape_pred')],
-            [tf.reshape(self.ys, [-1], name='reshape_target')],
-            [tf.ones([FLAGS.batch_size * FLAGS.time_step * FLAGS.road_num], dtype=tf.float32)],
-            average_across_timesteps=True,
-            softmax_loss_function=self.ms_error,
-            name='losses'
-        )
+        self.losses = tf.reduce_mean(tf.abs(tf.reshape(self.pred,[-1]) - tf.reshape(self.ys,[-1])))
+        tf.summary.scalar('loss', self.losses)
 
-        with tf.name_scope('average_cost'):
-            self.cost = tf.div(
-                tf.reduce_sum(self.losses, name='losses_sum'),
-                FLAGS.batch_size,
-                name='average_cost')
-            tf.summary.scalar('cost', self.cost)
+        # self.losses = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+        #     [tf.reshape(self.pred, [-1], name='reshape_pred')],
+        #     [tf.reshape(self.ys, [-1], name='reshape_target')],
+        #     [tf.ones([FLAGS.batch_size * FLAGS.time_step * FLAGS.road_num], dtype=tf.float32)],
+        #     average_across_timesteps=True,
+        #     softmax_loss_function=self.ms_error,
+        #     name='losses'
+        # )
+        #
+        # with tf.name_scope('average_cost'):
+        #     self.cost = tf.div(
+        #         tf.reduce_sum(self.losses, name='losses_sum'),
+        #         FLAGS.batch_size,
+        #         name='average_cost')
+        #     tf.summary.scalar('cost', self.cost)
 
 
 
