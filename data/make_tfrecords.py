@@ -29,7 +29,7 @@ from utils import FLAGS
 TRAINING_DIR = 'E:/data/Data0/output4/SRCN/realDataFormat_800r_png'
 # TESTING_DIR = '../../MNIST_data/mnist_jpg/testing/'
 # tfrecord 文件保存路径,这里只保存一个 tfrecord 文件
-TRAINING_TFRECORD_NAME = '800r_png_training.tfrecord'
+TRAINING_TFRECORD_NAME = '800r_validation.tfrecord'
 # TESTING_TFRECORD_NAME = 'testing.tfrecord'
 
 
@@ -57,7 +57,8 @@ def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/
     if not os.path.exists(os.path.dirname(tfrecord_path)):
         os.makedirs(os.path.dirname(tfrecord_path))
 
-    # label_list = np.genfromtxt('E:/data/Data0/output4/SRCN/November_800r_velocity_cnn.txt')
+    label_list = np.genfromtxt('E:/data/Data0/output4/SRCN/November_800r_velocity_cnn.txt')
+    label_list = label_list.astype(int)
     # label_list = label_list.tolist()
 
     tfrecord_file = os.path.join(tfrecord_path, tfrecord_name)
@@ -67,7 +68,7 @@ def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/
             time0 = time.time()
             n_sample = len(file_names)
             # 共30630-12 = 30618，但是为了便于5 batch整除，所以减3 = 30615
-            for i in range(n_sample - FLAGS.time_step - 3):
+            for i in range(21441,n_sample):
                 # 每步步长为12
                 for j in range(i, i+FLAGS.time_step):
                     file_name = file_names[j]
@@ -76,14 +77,15 @@ def convert_tfrecord_dataset(dataset_dir, tfrecord_name, tfrecord_path='../data/
                     jpg_path = os.path.join(dataset_dir, file_name)  # 获取每个图片的路径
                     # CNN inputs using
                     img = tf.gfile.FastGFile(jpg_path, 'rb').read()  # 读入图片
-                    # label = label_list[j]
+                    label = label_list[j]
                     # label.toString()
+                    file = dict()
+                    file['image'] = bytes_feature(img)
+                    for index,velocity in enumerate(label):
+                        file['label_{}'.format(index)] = int64_feature(velocity)
                     example = tf.train.Example(
                         features=tf.train.Features(
-                            feature={
-                                'image': bytes_feature(img)
-                                # 'label': bytes_feature(label)
-                            }))
+                            feature=file))
                     serialized = example.SerializeToString()
                     writer.write(serialized)
     print('\nFinished writing data to tfrecord files.')

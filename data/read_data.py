@@ -49,9 +49,9 @@ def get_batch(image, image_H, image_W, batch_size,capacity):
 
     return images_batch
 
-def get_batch2(image_H, image_W, batch_size,capacity):
+def get_batch2(dir,image_H, image_W, batch_size,capacity):
     # **1.把所有的 tfrecord 文件名列表写入队列中
-    filename_queue = tf.train.string_input_producer(['drive/SRCN/data/800r_png_training.tfrecord'], num_epochs=20,
+    filename_queue = tf.train.string_input_producer([dir], num_epochs=20,
                                                     shuffle=False)
     # filename_queue = tf.train.string_input_producer(['data/800r_png_training.tfrecord'], num_epochs=1,
     #                                                 shuffle=False)
@@ -59,11 +59,13 @@ def get_batch2(image_H, image_W, batch_size,capacity):
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     # **3.根据你写入的格式对应说明读取的格式
+    feature = dict()
+    feature['image'] = tf.FixedLenFeature([], tf.string)
+    for i in range(FLAGS.road_num):
+        feature['label_{}'.format(i)] = tf.FixedLenFeature([], tf.int64)
     features = tf.parse_single_example(serialized_example,
-                                       features={
-                                           'image': tf.FixedLenFeature([], tf.string)
-                                       }
-                                       )
+                                       features=feature)
+
     img = features['image']
     # 这里需要对图片进行解码
     img = tf.image.decode_png(img, channels=1)  # 这里，也可以解码为 1 通道
@@ -71,11 +73,18 @@ def get_batch2(image_H, image_W, batch_size,capacity):
     img = tf.cast(img, tf.float32)
     print('img3 is', img)
 
-    X_batch = tf.train.batch([img], batch_size=batch_size, capacity=capacity, num_threads=16)
+    label = list()
+    for i in range(FLAGS.road_num):
+        label.append(tf.cast(features['label_{}'.format(i)], tf.int32))
+
+    X_batch,y_batch = tf.train.batch([img,label], batch_size=batch_size, capacity=capacity, num_threads=16)
 
     X_batch = tf.cast(X_batch, tf.float32)
+    y_batch = tf.cast(y_batch, tf.float32)
 
-    return X_batch
+    y_batch = tf.reshape(y_batch, [-1, FLAGS.time_step, FLAGS.road_num]);
+
+    return X_batch,y_batch
 
 def get_label(start, label):
 
